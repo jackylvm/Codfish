@@ -1,11 +1,13 @@
+using Common;
 using UnityEngine;
 
-namespace Lesson02
+namespace Basics.Lesson03
 {
-    public class Lesson02 : MonoBehaviour
+    public class Lesson03 : MonoBehaviour
     {
         [SerializeField] private Transform pointPrefab;
         [SerializeField, Range(10, 100)] private int resolution = 10;
+        [SerializeField] private FunctionLibrary.EmFunction function;
 
         private Transform[] points;
 
@@ -13,15 +15,11 @@ namespace Lesson02
         {
             var step = 2.0f / resolution;
             var scale = Vector3.one * step;
-            var position = Vector3.zero;
 
-            points = new Transform[resolution];
+            points = new Transform[resolution * resolution];
             for (var i = 0; i < points.Length; i++)
             {
-                position.x = ((i + 0.5f) * step - 1f);
-
                 var point = points[i] = Instantiate(pointPrefab, transform, false);
-                point.localPosition = position;
                 point.localScale = scale;
             }
         }
@@ -34,13 +32,23 @@ namespace Lesson02
         // Update is called once per frame
         private void Update()
         {
-            for (var i = 0; i < points.Length; i++)
-            {
-                var point = points[i];
+            var fDelegate = FunctionLibrary.GetFunction(function);
 
-                var position = point.localPosition;
-                position.y = Mathf.Sin((position.x + Time.time) * Mathf.PI);
-                point.localPosition = position;
+            var time = Time.time;
+            var step = 2.0f / resolution;
+
+            var v = 0.5f * step - 1f;
+            for (int i = 0, x = 0, z = 0; i < points.Length; i++, x++)
+            {
+                if (x == resolution)
+                {
+                    x = 0;
+                    z += 1;
+                    v = ((z + 0.5f) * step - 1f);
+                }
+
+                var u = ((x + 0.5f) * step - 1f);
+                points[i].localPosition = fDelegate(u, v, time);
             }
         }
     }
