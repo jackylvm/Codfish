@@ -1,4 +1,4 @@
-Shader "Sirius/Lesson02/PointSurface"
+Shader "Sirius/Basics/Lesson03/PointSurface"
 {
     Properties
     {
@@ -17,7 +17,7 @@ Shader "Sirius/Lesson02/PointSurface"
 
         void ConfigureSurface(Input IN, inout SurfaceOutputStandard surface)
         {
-            surface.Albedo.rg = saturate(IN.worldPos.xy * 0.5 + 0.5);
+            surface.Albedo = saturate(IN.worldPos * 0.5 + 0.5);
             surface.Smoothness = 0.5;
         }
         ENDCG
