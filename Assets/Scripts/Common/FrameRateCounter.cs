@@ -2,7 +2,7 @@ using System;
 using TMPro;
 using UnityEngine;
 
-namespace Lesson04
+namespace Common
 {
     public class FrameRateCounter : MonoBehaviour
     {

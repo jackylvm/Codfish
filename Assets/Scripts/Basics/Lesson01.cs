@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Basics.Lesson01
+namespace Basics
 {
     public class Lesson01 : MonoBehaviour
     {

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Basics.Lesson02
+namespace Basics
 {
     public class Lesson02 : MonoBehaviour
     {
