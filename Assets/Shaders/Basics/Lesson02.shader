@@ -1,4 +1,4 @@
-Shader "Sirius/Basics/Lesson02/PointSurface"
+Shader "Codfish/Basics/Lesson02/PointSurface"
 {
     Properties
     {
