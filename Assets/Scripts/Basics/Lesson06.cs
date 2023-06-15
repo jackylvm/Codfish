@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Basics
@@ -7,46 +8,109 @@ namespace Basics
     /// </summary>
     public class Lesson06 : MonoBehaviour
     {
-        [SerializeField, Range(1, 8)] private int depth = 4;
-
-        // Start is called before the first frame update
-        private void Start()
+        private static Vector3[] directions = new Vector3[]
         {
-            name = $"Fractal {depth}";
-            if (depth <= 1)
+            Vector3.up, Vector3.right, Vector3.left, Vector3.forward, Vector3.back,
+        };
+
+        private static Quaternion[] quaternions = new Quaternion[]
+        {
+            Quaternion.identity,
+            Quaternion.Euler(0.0f, 0.0f, -90.0f),
+            Quaternion.Euler(0.0f, 0.0f, 90.0f),
+            Quaternion.Euler(90.0f, 0.0f, 0.0f),
+            Quaternion.Euler(-90.0f, 0.0f, 0.0f),
+        };
+
+        private struct FractalPart
+        {
+            public Vector3 direction;
+            public Quaternion rotation;
+            public Transform transform;
+        }
+
+        private FractalPart[][] parts;
+
+        [SerializeField, Range(1, 8)] private int depth = 4;
+        [SerializeField] private Mesh mesh;
+        [SerializeField] private Material material;
+
+        private void Awake()
+        {
+            parts = new FractalPart[depth][];
+            for (int i = 0, length = 1; i < parts.Length; i++, length *= 5)
             {
-                return;
+                parts[i] = new FractalPart[length];
             }
 
-            var childA = CreateChild(Vector3.up, Quaternion.identity);
-            var childB = CreateChild(Vector3.right, Quaternion.Euler(0.0f, 0.0f, -90.0f));
-            var childC = CreateChild(Vector3.left, Quaternion.Euler(0.0f, 0.0f, 90.0f));
-            var childD = CreateChild(Vector3.forward, Quaternion.Euler(90.0f, 0.0f, 0.0f));
-            var childE = CreateChild(Vector3.back, Quaternion.Euler(-90.0f, 0.0f, 0.0f));
-
-            childA.transform.SetParent(transform, false);
-            childB.transform.SetParent(transform, false);
-            childC.transform.SetParent(transform, false);
-            childD.transform.SetParent(transform, false);
-            childE.transform.SetParent(transform, false);
+            var scale = 1.0f;
+            parts[0][0] = CreatePart(0, 0, scale);
+            for (var i = 1; i < parts.Length; i++)
+            {
+                scale *= 0.5f;
+                var levelParts = parts[i];
+                for (var j = 0; j < levelParts.Length; j += 5)
+                {
+                    for (var k = 0; k < 5; k++)
+                    {
+                        levelParts[j + k] = CreatePart(i, k, scale);
+                    }
+                }
+            }
         }
 
-        private Lesson06 CreateChild(Vector3 direction, Quaternion quaternion)
+        private FractalPart CreatePart(int levelIdx, int childIdx, float scale)
         {
-            var child = Instantiate(this);
-            child.depth = depth - 1;
+            var go = new GameObject($"Fractal Part L{levelIdx} C{childIdx}")
+            {
+                transform =
+                {
+                    localScale = scale * Vector3.one
+                }
+            };
+            go.transform.SetParent(transform, false);
 
-            var transform1 = child.transform;
-            transform1.localPosition = 0.75f * direction;
-            transform1.localRotation = quaternion;
-            transform1.localScale = 0.5f * Vector3.one;
-            return child;
+            go.AddComponent<MeshFilter>().mesh = mesh;
+            go.AddComponent<MeshRenderer>().material = material;
+
+            return new FractalPart
+            {
+                direction = directions[childIdx],
+                rotation = quaternions[childIdx],
+                transform = go.transform
+            };
         }
 
-        // Update is called once per frame
         private void Update()
         {
-            transform.Rotate(0.0f, 22.5f * Time.deltaTime, 0.0f);
+            var deltaRotation = Quaternion.Euler(0f, 22.5f * Time.deltaTime, 0f);
+
+            var rootPart = parts[0][0];
+            rootPart.rotation *= deltaRotation;
+            rootPart.transform.localRotation = rootPart.rotation;
+            parts[0][0] = rootPart;
+
+            for (var i = 1; i < parts.Length; i++)
+            {
+                var parentParts = parts[i - 1];
+                var levelParts = parts[i];
+                for (var j = 0; j < levelParts.Length; j++)
+                {
+                    var parentTransform = parentParts[j / 5].transform;
+                    var part = levelParts[j];
+
+                    part.rotation *= deltaRotation;
+
+                    var localRotation = parentTransform.localRotation;
+                    part.transform.localRotation = localRotation * part.rotation;
+                    part.transform.localPosition = (
+                        parentTransform.localPosition +
+                        localRotation * (1.5f * part.transform.localScale.x * part.direction)
+                    );
+
+                    levelParts[j] = part;
+                }
+            }
         }
     }
 }
