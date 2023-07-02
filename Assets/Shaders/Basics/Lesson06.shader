@@ -2,25 +2,36 @@ Shader "Codfish/Basics/Lesson06/Surface"
 {
     Properties
     {
-        _Smoothness("Smoothness",Range(0,1)) = 0.5
+        _BaseColor ("Base Color", Color) = (1.0, 0.64706, 0.0)
+        _Smoothness ("Smoothness", Range(0,1)) = 0.5
     }
+
     SubShader
     {
         CGPROGRAM
-        #pragma surface ConfigureSurface Standard fullforwardshadows
-        #pragma target 3.0
+        #pragma surface ConfigureSurface Standard fullforwardshadows addshadow
+        #pragma instancing_options assumeuniformscaling procedural:ConfigureProcedural
+        #pragma editor_sync_compilation
+
+        #pragma target 4.5
+
+        #include "Lesson06.hlsl"
 
         struct Input
         {
             float3 worldPos;
         };
 
-        void ConfigureSurface(Input IN, inout SurfaceOutputStandard surface)
+        float4 _BaseColor;
+        float _Smoothness;
+
+        void ConfigureSurface(Input input, inout SurfaceOutputStandard surface)
         {
-            surface.Albedo = float3(1, 0.8431, 0);
-            surface.Smoothness = 0.5;
+            surface.Albedo = _BaseColor.rgb;
+            surface.Smoothness = _Smoothness;
         }
         ENDCG
     }
+
     FallBack "Diffuse"
 }
