@@ -106,7 +106,7 @@ namespace Basics
             {
                 buffer.Release();
             }
-            
+
             parts = null;
             matrices = null;
             matricesBuffers = null;
@@ -135,16 +135,18 @@ namespace Basics
             var spinAngleDelta = 22.5f * Time.deltaTime;
 
             var rootPart = parts[0][0];
-            rootPart.worldRotation = rootPart.rotation * Quaternion.Euler(0.0f, spinAngleDelta, 0.0f);
+            rootPart.worldRotation = transform.rotation * (rootPart.rotation * Quaternion.Euler(0f, rootPart.spinAngle, 0f));
+            rootPart.worldPosition = transform.position;
             rootPart.spinAngle = spinAngleDelta;
 
             parts[0][0] = rootPart;
 
+            var objectScale = transform.lossyScale.x;
             matrices[0][0] = Matrix4x4.TRS(
-                rootPart.worldPosition, rootPart.worldRotation, Vector3.one
+                rootPart.worldPosition, rootPart.worldRotation, objectScale * Vector3.one
             );
 
-            var scale = 1.0f;
+            var scale = objectScale;
             for (var li = 1; li < parts.Length; li++)
             {
                 scale *= 0.5f;
@@ -176,7 +178,7 @@ namespace Basics
                 matricesBuffers[i].SetData(matrices[i]);
             }
 
-            var bounds = new Bounds(Vector3.zero, 3f * Vector3.one);
+            var bounds = new Bounds(rootPart.worldPosition, 3f * objectScale * Vector3.one);
             for (var i = 0; i < matricesBuffers.Length; i++)
             {
                 var buffer = matricesBuffers[i];
