@@ -1,5 +1,6 @@
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine;
 using static Unity.Mathematics.math;
 using quaternion = Unity.Mathematics.quaternion;
@@ -31,8 +32,8 @@ namespace Basics
 
         private struct FractalPart
         {
-            public Vector3 direction;
-            public Vector3 worldPosition;
+            public float3 direction;
+            public float3 worldPosition;
             public Quaternion rotation;
             public Quaternion worldRotation;
             public float spinAngle;
@@ -46,48 +47,21 @@ namespace Basics
         private NativeArray<FractalPart>[] parts;
 
         // private Matrix4x4[][] matrices;
-        private NativeArray<Matrix4x4>[] matrices;
+        private NativeArray<float3x4>[] matrices;
 
         private ComputeBuffer[] matricesBuffers;
-
-        private void Awake()
-        {
-            parts = new NativeArray<FractalPart>[depth];
-            matrices = new NativeArray<Matrix4x4>[depth];
-            matricesBuffers = new ComputeBuffer[depth];
-            const int stride = 16 * 4;
-            for (int i = 0, length = 1; i < parts.Length; i++, length *= 5)
-            {
-                parts[i] = new NativeArray<FractalPart>(length, Allocator.Persistent);
-                matrices[i] = new NativeArray<Matrix4x4>(length, Allocator.Persistent);
-                matricesBuffers[i] = new ComputeBuffer(length, stride);
-            }
-
-            parts[0][0] = CreatePart(0);
-            for (var li = 1; li < parts.Length; li++)
-            {
-                var levelParts = parts[li];
-                for (var fpi = 0; fpi < levelParts.Length; fpi += 5)
-                {
-                    for (var ci = 0; ci < 5; ci++)
-                    {
-                        levelParts[fpi + ci] = CreatePart(ci);
-                    }
-                }
-            }
-        }
 
         private void OnEnable()
         {
             parts = new NativeArray<FractalPart>[depth];
-            matrices = new NativeArray<Matrix4x4>[depth];
+            matrices = new NativeArray<float3x4>[depth];
             matricesBuffers = new ComputeBuffer[depth];
 
-            const int stride = 16 * 4;
+            const int stride = 12 * 4;
             for (int i = 0, length = 1; i < parts.Length; i++, length *= 5)
             {
                 parts[i] = new NativeArray<FractalPart>(length, Allocator.Persistent);
-                matrices[i] = new NativeArray<Matrix4x4>(length, Allocator.Persistent);
+                matrices[i] = new NativeArray<float3x4>(length, Allocator.Persistent);
                 matricesBuffers[i] = new ComputeBuffer(length, stride);
             }
 
@@ -157,9 +131,11 @@ namespace Basics
             parts[0][0] = rootPart;
 
             var objectScale = tr.lossyScale.x;
-            matrices[0][0] = Matrix4x4.TRS(
-                rootPart.worldPosition, rootPart.worldRotation, float3(objectScale)
-            );
+            var r = float3x3(rootPart.worldRotation) * objectScale;
+            matrices[0][0] = float3x4(r.c0, r.c1, r.c2, rootPart.worldPosition);
+            // matrices[0][0] = Matrix4x4.TRS(
+            //     rootPart.worldPosition, rootPart.worldRotation, float3(objectScale)
+            // );
             // matrices[0][0] = Matrix4x4.TRS(
             //     rootPart.worldPosition, rootPart.worldRotation, objectScale * Vector3.one
             // );
