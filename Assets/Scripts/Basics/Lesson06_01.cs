@@ -1,5 +1,3 @@
-using Unity.Collections;
-using Unity.Jobs;
 using UnityEngine;
 
 namespace Basics
@@ -7,9 +5,9 @@ namespace Basics
     /// <summary>
     /// Fractal,分形
     /// </summary>
-    public partial class Lesson06 : MonoBehaviour
+    public class Lesson06_01 : MonoBehaviour
     {
-        private static readonly int matricesId = Shader.PropertyToID("_Matrices");
+        static readonly int matricesId = Shader.PropertyToID("_Matrices");
 
         private static readonly Vector3[] directions =
         {
@@ -40,24 +38,21 @@ namespace Basics
         [SerializeField] private Mesh mesh;
         [SerializeField] private Material material;
 
-        // private FractalPart[][] parts;
-        private NativeArray<FractalPart>[] parts;
-
-        // private Matrix4x4[][] matrices;
-        private NativeArray<Matrix4x4>[] matrices;
+        private FractalPart[][] parts;
+        private Matrix4x4[][] matrices;
 
         private ComputeBuffer[] matricesBuffers;
 
         private void Awake()
         {
-            parts = new NativeArray<FractalPart>[depth];
-            matrices = new NativeArray<Matrix4x4>[depth];
+            parts = new FractalPart[depth][];
+            matrices = new Matrix4x4[depth][];
             matricesBuffers = new ComputeBuffer[depth];
             const int stride = 16 * 4;
             for (int i = 0, length = 1; i < parts.Length; i++, length *= 5)
             {
-                parts[i] = new NativeArray<FractalPart>(length, Allocator.Persistent);
-                matrices[i] = new NativeArray<Matrix4x4>(length, Allocator.Persistent);
+                parts[i] = new FractalPart[length];
+                matrices[i] = new Matrix4x4[length];
                 matricesBuffers[i] = new ComputeBuffer(length, stride);
             }
 
@@ -77,15 +72,15 @@ namespace Basics
 
         private void OnEnable()
         {
-            parts = new NativeArray<FractalPart>[depth];
-            matrices = new NativeArray<Matrix4x4>[depth];
+            parts = new FractalPart[depth][];
+            matrices = new Matrix4x4[depth][];
             matricesBuffers = new ComputeBuffer[depth];
 
             const int stride = 16 * 4;
             for (int i = 0, length = 1; i < parts.Length; i++, length *= 5)
             {
-                parts[i] = new NativeArray<FractalPart>(length, Allocator.Persistent);
-                matrices[i] = new NativeArray<Matrix4x4>(length, Allocator.Persistent);
+                parts[i] = new FractalPart[length];
+                matrices[i] = new Matrix4x4[length];
                 matricesBuffers[i] = new ComputeBuffer(length, stride);
             }
 
@@ -107,11 +102,9 @@ namespace Basics
 
         private void OnDisable()
         {
-            for (var i = 0; i < matricesBuffers.Length; i++)
+            foreach (var buffer in matricesBuffers)
             {
-                matricesBuffers[i].Release();
-                parts[i].Dispose();
-                matrices[i].Dispose();
+                buffer.Release();
             }
 
             parts = null;
@@ -141,54 +134,44 @@ namespace Basics
         {
             var spinAngleDelta = 22.5f * Time.deltaTime;
 
-            var tr = transform;
-            
             var rootPart = parts[0][0];
-            rootPart.worldRotation = tr.rotation * (rootPart.rotation * Quaternion.Euler(0f, rootPart.spinAngle, 0f));
-            rootPart.worldPosition = tr.position;
+            rootPart.worldRotation = transform.rotation * (rootPart.rotation * Quaternion.Euler(0f, rootPart.spinAngle, 0f));
+            rootPart.worldPosition = transform.position;
             rootPart.spinAngle = spinAngleDelta;
 
             parts[0][0] = rootPart;
 
-            var objectScale = tr.lossyScale.x;
+            var objectScale = transform.lossyScale.x;
             matrices[0][0] = Matrix4x4.TRS(
                 rootPart.worldPosition, rootPart.worldRotation, objectScale * Vector3.one
             );
-
-            JobHandle jobHandle = default;
 
             var scale = objectScale;
             for (var li = 1; li < parts.Length; li++)
             {
                 scale *= 0.5f;
-
-                jobHandle = new UpdateFractalLevelJob
+                var parentParts = parts[li - 1];
+                var levelParts = parts[li];
+                var levelMatrices = matrices[li];
+                for (var fpi = 0; fpi < levelParts.Length; fpi++)
                 {
-                    spinAngleDelta = spinAngleDelta,
-                    scale = scale,
-                    parents = parts[li - 1],
-                    parts = parts[li],
-                    matrices = matrices[li]
-                }.Schedule(parts[li].Length, jobHandle);
+                    var parent = parentParts[fpi / 5];
+                    var part = levelParts[fpi];
 
-                // var job = new UpdateFractalLevelJob
-                // {
-                //     spinAngleDelta = spinAngleDelta,
-                //     scale = scale,
-                //     parents = parts[li - 1],
-                //     parts = parts[li],
-                //     matrices = matrices[li]
-                // };
-                //
-                // jobHandle = job.Schedule(parts[li].Length, jobHandle);
-                // job.Schedule(parts[li].Length, default).Complete();
-                // for (var fpi = 0; fpi < parts[li].Length; fpi++)
-                // {
-                //     job.Execute(fpi);
-                // }
+                    part.spinAngle += spinAngleDelta;
+                    part.worldRotation = parent.worldRotation * (part.rotation * Quaternion.Euler(0.0f, part.spinAngle, 0.0f));
+                    part.worldPosition = (
+                        parent.worldPosition +
+                        parent.worldRotation * (1.5f * scale * part.direction)
+                    );
+
+                    levelParts[fpi] = part;
+
+                    levelMatrices[fpi] = Matrix4x4.TRS(
+                        part.worldPosition, part.worldRotation, scale * Vector3.one
+                    );
+                }
             }
-
-            jobHandle.Complete();
 
             for (var i = 0; i < matricesBuffers.Length; i++)
             {
