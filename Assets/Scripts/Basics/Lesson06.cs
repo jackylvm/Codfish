@@ -1,6 +1,8 @@
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
+using static Unity.Mathematics.math;
+using quaternion = Unity.Mathematics.quaternion;
 
 namespace Basics
 {
@@ -13,16 +15,16 @@ namespace Basics
 
         private static readonly Vector3[] directions =
         {
-            Vector3.up, Vector3.right, Vector3.left, Vector3.forward, Vector3.back,
+            up(), right(), left(), forward(), back()
         };
 
         private static readonly Quaternion[] quaternions =
         {
-            Quaternion.identity,
-            Quaternion.Euler(0.0f, 0.0f, -90.0f),
-            Quaternion.Euler(0.0f, 0.0f, 90.0f),
-            Quaternion.Euler(90.0f, 0.0f, 0.0f),
-            Quaternion.Euler(-90.0f, 0.0f, 0.0f),
+            quaternion.identity,
+            quaternion.RotateZ(-0.5f * PI),
+            quaternion.RotateZ(0.5f * PI),
+            quaternion.RotateX(0.5f * PI),
+            quaternion.RotateX(-0.5f * PI),
         };
 
         private static MaterialPropertyBlock propertyBlock;
@@ -139,12 +141,16 @@ namespace Basics
 
         private void Update()
         {
-            var spinAngleDelta = 22.5f * Time.deltaTime;
+            var spinAngleDelta = 0.125f * PI * Time.deltaTime;
 
             var tr = transform;
-            
+
             var rootPart = parts[0][0];
-            rootPart.worldRotation = tr.rotation * (rootPart.rotation * Quaternion.Euler(0f, rootPart.spinAngle, 0f));
+            rootPart.worldRotation = mul(
+                tr.rotation,
+                mul(rootPart.rotation, quaternion.RotateY(rootPart.spinAngle))
+            );
+            // rootPart.worldRotation = tr.rotation * (rootPart.rotation * Quaternion.Euler(0f, rootPart.spinAngle, 0f));
             rootPart.worldPosition = tr.position;
             rootPart.spinAngle = spinAngleDelta;
 
@@ -152,8 +158,11 @@ namespace Basics
 
             var objectScale = tr.lossyScale.x;
             matrices[0][0] = Matrix4x4.TRS(
-                rootPart.worldPosition, rootPart.worldRotation, objectScale * Vector3.one
+                rootPart.worldPosition, rootPart.worldRotation, float3(objectScale)
             );
+            // matrices[0][0] = Matrix4x4.TRS(
+            //     rootPart.worldPosition, rootPart.worldRotation, objectScale * Vector3.one
+            // );
 
             JobHandle jobHandle = default;
 
